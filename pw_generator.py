@@ -1,6 +1,7 @@
 import numpy as np
 import requests
 import argparse
+import secrets
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-n','--number',help='the desired number of passwords to generate', default=1)
@@ -9,6 +10,7 @@ parser.add_argument('-s','--size',help='the size of the words',default=None)
 parser.add_argument('-c','--chars',help='number of special characters',default=1)
 parser.add_argument('-i','--integers',help='the number of integers to add',default=1)
 parser.add_argument('-d','--digits',help='the number of digits for the integers',default=3)
+parser.add_argument('--caps',help='whether to capitalize the first letter of each word',default=False)
 
 args = parser.parse_args()
 
@@ -19,7 +21,8 @@ class PassSentence:
                  word_size=None,
                  number_chars=1,
                  number_integers=1,
-                 number_digit=3):
+                 number_digit=3,
+                 caps = False):
 
         self.number_words = number_words
         self.word_size = word_size
@@ -27,6 +30,7 @@ class PassSentence:
         self.number_integers = number_integers
         self.number_digit = number_digit
         self.rng = np.random.default_rng()
+        self.caps = caps
 
         if self.number_integers > self.number_words:
             self.number_integers = self.number_words
@@ -47,6 +51,9 @@ class PassSentence:
 
         self.words = response.json()
 
+        if caps:
+            self.words = [word.capitalize() for word in self.words]
+
         return self
 
     def _generate_chars(self):
@@ -57,36 +64,25 @@ class PassSentence:
             np.linspace(123, 126, 127 - 123)
         ])
 
-        self.ascii_index = list(self.rng.integers(low=0,
-                                           high=len(ascii_values),
-                                           size=self.number_chars,
-                                           dtype=int)
-                          )
-
-        self.special_chars = [chr(int(ascii_values[index]))
-                              for index in self.ascii_index]
+        self.special_chars = [chr(int(secrets.choice(ascii_values)))
+                              for _ in range(self.number_chars)]
 
         return self
 
     def _generate_integers(self):
         high_val = int('9' * self.number_digit)
-        self.integers = self.rng.integers(low=0,
-                                     high=high_val,
-                                     size=self.number_integers,
-                                     dtype=int)
+        self.integers = [secrets.randbelow(high_val)
+                         for _ in range(self.number_integers)]
 
         return self
 
     def generate_passphrase(self,doprint=True):
         modified_words = self.words.copy()
 
-        integers_positions = self.rng.choice(self.number_words,
-                                            size=self.number_integers,
-                                            replace=False)
-
-        chars_positions = self.rng.choice(self.number_words,
-                                            size=self.number_chars,
-                                            replace=False)
+        integers_positions = [secrets.randbelow(self.number_words)
+                              for _ in range(self.number_integers)]
+        chars_positions = [secrets.randbelow(self.number_words)
+                           for _ in range(self.number_chars)]
 
         for var_pos,var_var in zip([integers_positions, chars_positions],
                                    [self.integers, self.special_chars]):
